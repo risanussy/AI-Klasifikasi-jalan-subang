@@ -11,41 +11,35 @@ load_dotenv()
 DEFAULT_GMAP_API_KEY = os.getenv("GMAP_API_KEY", "")
 
 # ----------------------------------------------------------
-# 2. Inisialisasi Session State dengan default koordinat Start & End
+# 2. Inisialisasi Session State
+
+# path: list of dict {lat, lon, rating, (opsional) data foto}
 if "path" not in st.session_state:
     st.session_state.path = []
 
-# Default koordinat:
-DEFAULT_START_LAT = -6.553863223990267
-DEFAULT_START_LON = 107.75965109951137
-DEFAULT_END_LAT = -6.55838447945851
-DEFAULT_END_LON = 107.75965109951137
-
 # Koordinat Start/End untuk rute
 if "route_start_lat" not in st.session_state:
-    st.session_state.route_start_lat = DEFAULT_START_LAT
+    st.session_state.route_start_lat = None
 if "route_start_lon" not in st.session_state:
-    st.session_state.route_start_lon = DEFAULT_START_LON
+    st.session_state.route_start_lon = None
 if "route_end_lat" not in st.session_state:
-    st.session_state.route_end_lat = DEFAULT_END_LAT
+    st.session_state.route_end_lat = None
 if "route_end_lon" not in st.session_state:
-    st.session_state.route_end_lon = DEFAULT_END_LON
+    st.session_state.route_end_lon = None
 
 # route_index: menandakan kita sedang di segmen ke-berapa
 if "route_index" not in st.session_state:
     st.session_state.route_index = 0
 
-# Menyimpan foto kamera terakhir (jika diambil dari kamera lokal)
+# Menyimpan foto kamera terakhir
 if "latest_camera_image" not in st.session_state:
     st.session_state.latest_camera_image = None
 
-# ----------------------------------------------------------
-# 3. Parameter lain
+# Jumlah segmen rute
 NUM_SEGMENTS = 10
-IP_CAMERA_URL = "http://192.168.0.100:8080/video"  # URL live feed kamera HP
 
 # ----------------------------------------------------------
-# 4. Fungsi menghitung koordinat interpolasi Start→End
+# 3. Fungsi menghitung koordinat interpolasi Start→End
 def get_next_route_point(index, total_segments, start_lat, start_lon, end_lat, end_lon):
     """
     index = 0..(total_segments - 1)
@@ -60,7 +54,7 @@ def get_next_route_point(index, total_segments, start_lat, start_lon, end_lat, e
     return lat, lon
 
 # ----------------------------------------------------------
-# 5. Fungsi membuat HTML Google Maps
+# 4. Fungsi membuat HTML Google Maps
 def generate_gmap_html(api_key, path, route_coords):
     """
     path: list of {lat, lon, rating}
@@ -223,7 +217,7 @@ def generate_gmap_html(api_key, path, route_coords):
     return html_code
 
 # ----------------------------------------------------------
-# 6. Halaman Utama
+# 5. Halaman Utama
 def main():
     st.title("Demo Rute + Kamera Input (Traffic-like Line)")
 
@@ -233,12 +227,12 @@ def main():
     if not gmap_api_key:
         st.sidebar.warning("Masukkan API Key agar peta bisa tampil.")
 
-    # -- Sidebar: Input Koordinat Rute (dengan default)
+    # -- Sidebar: Input Koordinat Rute
     st.sidebar.header("Rute: Start - End")
-    start_lat_in = st.sidebar.text_input("Start Lat", value=str(st.session_state.route_start_lat))
-    start_lon_in = st.sidebar.text_input("Start Lon", value=str(st.session_state.route_start_lon))
-    end_lat_in = st.sidebar.text_input("End Lat", value=str(st.session_state.route_end_lat))
-    end_lon_in = st.sidebar.text_input("End Lon", value=str(st.session_state.route_end_lon))
+    start_lat_in = st.sidebar.text_input("Start Lat", value=str(st.session_state.route_start_lat or ""))
+    start_lon_in = st.sidebar.text_input("Start Lon", value=str(st.session_state.route_start_lon or ""))
+    end_lat_in = st.sidebar.text_input("End Lat", value=str(st.session_state.route_end_lat or ""))
+    end_lon_in = st.sidebar.text_input("End Lon", value=str(st.session_state.route_end_lon or ""))
 
     if st.sidebar.button("Simpan Rute"):
         try:
@@ -252,53 +246,25 @@ def main():
             st.session_state.route_index = 0
             st.sidebar.success("Koordinat rute disimpan & path direset.")
         except ValueError:
-            st.sidebar.error("Koordinat rute tidak valid (pastikan isian berupa angka).")
+            st.sidebar.error("Koordinat rute tidak valid (isi angka).")
 
     st.markdown("---")
 
-    # -- Bagian Kamera: Menggunakan IP Kamera (Kamera HP)
-    st.header("Live Feed Kamera HP")
-    st.write("Pastikan HP Anda sedang melakukan streaming pada URL:")
-    st.code(IP_CAMERA_URL)
-    # Menggunakan komponen HTML untuk menampilkan live feed dari IP kamera
-    live_feed_html = f"""
-    <html>
-      <head>
-        <style>
-          body {{
-            margin: 0;
-            padding: 0;
-            background-color: black;
-          }}
-          img {{
-            width: 100%;
-            height: auto;
-            display: block;
-          }}
-        </style>
-      </head>
-      <body>
-        <img src="{IP_CAMERA_URL}" alt="Live Camera Feed" />
-      </body>
-    </html>
-    """
-    components.html(live_feed_html, height=400)
-
-    st.markdown("---")
-
-    # -- Bagian Kamera Lokal (Opsional): Ambil Foto dari Kamera Lokal
-    st.header("Ambil Foto dari Kamera Lokal (Opsional)")
-    camera_image = st.camera_input("Klik/tap di sini untuk mengambil foto dari kamera lokal")
+    # -- Bagian Kamera
+    st.header("Ambil Foto dari Kamera")
+    camera_image = st.camera_input("Klik/tap di sini untuk mengambil foto dari kamera")
     if camera_image is not None:
         # Simpan ke session state agar tetap ada setelah reload
         st.session_state.latest_camera_image = camera_image
-        st.image(camera_image, caption="Foto Terbaru dari Kamera Lokal")
+        st.image(camera_image, caption="Foto Terbaru")
+
+    # Jika tidak ada foto baru, cek apakah sudah ada foto sebelumnya
     elif st.session_state.latest_camera_image is not None:
-        st.image(st.session_state.latest_camera_image, caption="Foto Terakhir dari Kamera Lokal")
+        st.image(st.session_state.latest_camera_image, caption="Foto Terakhir")
 
     st.markdown("---")
 
-    # -- Tombol "Capture Data" untuk mensimulasikan capture data dengan score dummy
+    # -- Tombol "Capture Data"
     st.header("Capture Data di Titik Berikutnya (Score Dummy)")
     st.write(f"Total segmen rute: {NUM_SEGMENTS}")
     st.write(f"Sudah direkam: {len(st.session_state.path)} titik.")
@@ -309,7 +275,7 @@ def main():
             st.session_state.route_start_lon is None or
             st.session_state.route_end_lat is None or
             st.session_state.route_end_lon is None):
-            st.warning("Set koordinat Start & End di sidebar terlebih dahulu.")
+            st.warning("Set Koordinat Start & End di sidebar terlebih dahulu.")
         else:
             if st.session_state.route_index < NUM_SEGMENTS:
                 # Hitung titik ke-(route_index)
@@ -321,7 +287,7 @@ def main():
                     end_lat=st.session_state.route_end_lat,
                     end_lon=st.session_state.route_end_lon
                 )
-                # Score dummy (acak antara 0 dan 10)
+                # Score dummy
                 score = random.uniform(0, 10)
 
                 # Simpan ke path
@@ -334,14 +300,14 @@ def main():
 
                 st.success(
                     f"Titik ke-{st.session_state.route_index} direkam: "
-                    f"({lat:.5f}, {lon:.5f}), score = {score:.2f}"
+                    f"({lat:.5f}, {lon:.5f}), score={score:.2f}"
                 )
             else:
                 st.info("Sudah mencapai segmen terakhir (End).")
 
     st.markdown("---")
 
-    # -- Tampilkan Peta dengan Google Maps
+    # -- Tampilkan Peta
     st.header("Peta Rute dengan Garis 'Traffic-like'")
     route_coords = []
     if (st.session_state.route_start_lat is not None and
