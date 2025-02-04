@@ -45,7 +45,7 @@ if "route_index" not in st.session_state:
 if "latest_camera_image" not in st.session_state:
     st.session_state.latest_camera_image = None
 
-# Inisialisasi untuk streaming IP Camera (dari snippet kedua)
+# Inisialisasi untuk streaming IP Camera (dari snippet yang Anda lampirkan)
 if "camera_active" not in st.session_state:
     st.session_state.camera_active = False
 
